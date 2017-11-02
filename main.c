@@ -15,14 +15,17 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 
-void page_fault_handler( struct page_table *pt, int page )
-{
-	printf("page fault on page #%d\n",page);
-	exit(1);
+
+// My understanding is that, when a page fault occurs, we need to evict data from a page.
+// To do that, we must preserve memory writes by writing the frame where the fault occurs
+// to the disk. Then, the next time the frame is loaded, the data will be preserved.
+void page_fault_handler( struct page_table *pageTable, int page ) {
+	int frame = rand() % pageTable->nframes;
+	printf("page fault: setting page %d to frame %d\n", page, frame);
+	page_table_set_entry(pageTable, page, frame, PROT_READ|PROT_WRITE);
 }
 
-int main( int argc, char *argv[] )
-{
+int main( int argc, char *argv[] ) {
 	if(argc!=5) {
 		printf("use: virtmem <npages> <nframes> <rand|fifo|custom> <sort|scan|focus>\n");
 		return 1;
@@ -50,7 +53,7 @@ int main( int argc, char *argv[] )
 	char *physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"sort")) {
-		sort_program(virtmem,npages*PAGE_SIZE);
+		sort_program(virtmem, npages * 5);
 
 	} else if(!strcmp(program,"scan")) {
 		scan_program(virtmem,npages*PAGE_SIZE);
@@ -60,7 +63,6 @@ int main( int argc, char *argv[] )
 
 	} else {
 		fprintf(stderr,"unknown program: %s\n",argv[3]);
-
 	}
 
 	page_table_delete(pt);
