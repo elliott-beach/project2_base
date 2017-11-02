@@ -15,14 +15,13 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 
-void page_fault_handler( struct page_table *pt, int page )
-{
-	printf("page fault on page #%d\n",page);
-	exit(1);
+void page_fault_handler( struct page_table *pageTable, int page ) {
+	printf("page fault: %d\n", page);
+	int frame = rand() % pageTable->nframes;
+	page_table_set_entry(pageTable, page, frame, PROT_READ|PROT_WRITE);
 }
 
-int main( int argc, char *argv[] )
-{
+int main( int argc, char *argv[] ) {
 	if(argc!=5) {
 		printf("use: virtmem <npages> <nframes> <rand|fifo|custom> <sort|scan|focus>\n");
 		return 1;
@@ -60,7 +59,6 @@ int main( int argc, char *argv[] )
 
 	} else {
 		fprintf(stderr,"unknown program: %s\n",argv[3]);
-
 	}
 
 	page_table_delete(pt);
