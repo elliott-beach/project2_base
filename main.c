@@ -20,37 +20,43 @@ struct disk *disk;
 // My understanding is that, when a page fault occurs, we need to evict data from a page.
 // To do that, we must preserve memory writes by writing the frame where the fault occurs
 // to the disk. Then, the next time the frame is loaded, the data will be preserved.
+int count = 0;
 void page_fault_handler( struct page_table *pt, int page ) {
-	int frame;
+	count++;
+	//if(count == 25) exit(0);
+	int frame = -1;
 	for(int f=0; f < pt->nframes; f++){
 
-
 		// Find a frame that is not already allocated to a page.
-		int page;
-		for (page=0; page<pt->npages; page++){
-			if(pt->page_mapping[page] == f){ /* && page_bits[page] != 0 */ // We could also check the page bits, but it doesn't matter too much.
+		int curr_page;
+		for (curr_page=0; curr_page<pt->npages; curr_page++){
+			if(pt->page_mapping[curr_page] == f){ /* && page_bits[page] != 0 */ // We could also check the page bits, but it doesn't matter too much.
 				break;
 			}
-		} if(page == pt->npages){
+		} if(curr_page == pt->npages){
 			frame = f;
 			break;
 		}
 
 		// Else, evict a page.
-		if(f == pt->nframes){
+		if(1 + f == pt->nframes){
+			printf("eviction!\n");
 
 			// Find first page that is in-memory
-			for(page=0;pt->page_bits[page] != 0;page++)
+			for(curr_page=0;pt->page_bits[curr_page] == 0;curr_page++)
 				;
-			frame = pt->page_mapping[page];
-			// Mark it as out
-			pt->page_bits[page] = 0;
+			frame = pt->page_mapping[curr_page];
+
 			// Write it to disk
-			disk_write(disk, page, page_table_get_physmem(pt) + page * BLOCK_SIZE);
+			disk_write(disk, curr_page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+
+			// Mark it as out
+			page_table_set_entry(pt, curr_page, 0, 0);
+
 			break;
 		}
 	}
-	disk_read(disk, page, page_table_get_physmem(pt) + page * BLOCK_SIZE);
+	disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
 	printf("page fault: setting page %d to frame %d\n", page, frame);
 	page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
 }
@@ -83,7 +89,7 @@ int main( int argc, char *argv[] ) {
 	char *physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"sort")) {
-		sort_program(virtmem, npages * 500);
+		sort_program(virtmem, npages * 369);
 
 	} else if(!strcmp(program,"scan")) {
 		scan_program(virtmem,npages*PAGE_SIZE);
