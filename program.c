@@ -62,10 +62,10 @@ void sort_program( char *data, int length )
 
 	printf("before sorting:\n\n");
 	for(i=0;i<length;i++) {
-		printf("%d ", data[i]);
+//		printf("%d ", data[i]);
 		total += data[i];
 	}
-	printf("\n\n");
+//	printf("\n\n");
 
 	printf("sum is %d\n",total);
 	total = 0;
@@ -74,10 +74,10 @@ void sort_program( char *data, int length )
 
 	printf("after sorting:\n\n");
 	for(i=0;i<length;i++) {
-		printf("%d ", data[i]);
+//		printf("%d ", data[i]);
 		total += data[i];
 	}
-	printf("\n\n");
+//	printf("\n\n");
 
 	printf("sum is %d\n",total);
 }
