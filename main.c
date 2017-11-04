@@ -29,8 +29,8 @@ void page_fault_handler( struct page_table *pt, int page ) {
 
 		// Find a frame that is not already allocated to a page.
 		int curr_page;
-		for (curr_page=0; curr_page<pt->npages; curr_page++){
-			if(pt->page_mapping[curr_page] == f){ /* && page_bits[page] != 0 */ // We could also check the page bits, but it doesn't matter too much.
+		for (curr_page=0; curr_page < pt->npages; curr_page++){
+			if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){ /* && page_bits[page] != 0 */ // We could also check the page bits, but it doesn't matter too much.
 				break;
 			}
 		} if(curr_page == pt->npages){
@@ -42,9 +42,11 @@ void page_fault_handler( struct page_table *pt, int page ) {
 		if(1 + f == pt->nframes){
 			printf("eviction!\n");
 
-			// Find first page that is in-memory
-			for(curr_page=0;pt->page_bits[curr_page] == 0;curr_page++)
-				;
+			// Pick a random page that owns a frame.
+            do {
+                curr_page = rand() % pt->npages;
+            } while(pt->page_bits[curr_page] == 0);
+
 			frame = pt->page_mapping[curr_page];
 
 			// Write it to disk
@@ -77,7 +79,6 @@ int main( int argc, char *argv[] ) {
 		return 1;
 	}
 
-
 	struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
 	if(!pt) {
 		fprintf(stderr,"couldn't create page table: %s\n",strerror(errno));
@@ -89,7 +90,7 @@ int main( int argc, char *argv[] ) {
 	char *physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"sort")) {
-		sort_program(virtmem, npages * 369);
+		sort_program(virtmem, npages * PAGE_SIZE);
 
 	} else if(!strcmp(program,"scan")) {
 		scan_program(virtmem,npages*PAGE_SIZE);
