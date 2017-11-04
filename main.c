@@ -16,7 +16,103 @@ how to use the page table and disk interfaces.
 #include <errno.h>
 #include <stdbool.h>
 
+/////////////////////////////////////////////////////////////
+/// https://gist.github.com/EmilHernvall/953968/0fef1b1f826a8c3d8cfb74b2915f17d2944ec1d0
+typedef struct vector_ {
+    void** data;
+    int size;
+    int count;
+} vector;
+
+void vector_init(vector*);
+int vector_count(vector*);
+void vector_add(vector*, void*);
+void vector_set(vector*, int, void*);
+void *vector_get(vector*, int);
+void vector_delete(vector*, int);
+void vector_free(vector*);
+
+void vector_init(vector *v)
+{
+    v->data = NULL;
+    v->size = 0;
+    v->count = 0;
+}
+
+int vector_count(vector *v)
+{
+    return v->count;
+}
+
+void vector_add(vector *v, void *e)
+{
+    if (v->size == 0) {
+        v->size = 10;
+        v->data = malloc(sizeof(void*) * v->size);
+        memset(v->data, '\0', sizeof(void) * v->size);
+    }
+
+    // condition to increase v->data:
+    // last slot exhausted
+    if (v->size == v->count) {
+        v->size *= 2;
+        v->data = realloc(v->data, sizeof(void*) * v->size);
+    }
+
+    v->data[v->count] = e;
+    v->count++;
+}
+
+void vector_set(vector *v, int index, void *e)
+{
+    if (index >= v->count) {
+        return;
+    }
+
+    v->data[index] = e;
+}
+
+void *vector_get(vector *v, int index)
+{
+    if (index >= v->count) {
+        return;
+    }
+
+    return v->data[index];
+}
+
+void vector_delete(vector *v, int index)
+{
+    if (index >= v->count) {
+        return;
+    }
+
+    v->data[index] = NULL;
+
+    int i, j;
+    void **newarr = (void**)malloc(sizeof(void*) * v->count * 2);
+    for (i = 0, j = 0; i < v->count; i++) {
+        if (v->data[i] != NULL) {
+            newarr[j] = v->data[i];
+            j++;
+        }
+    }
+
+    free(v->data);
+
+    v->data = newarr;
+    v->count--;
+}
+
+void vector_free(vector *v)
+{
+    free(v->data);
+}
+/////////////////////////////////////////////////////////////
+
+
 struct disk* disk;
+vector pagesStack;
 
 void evictPage(struct page_table *pt, int page);
 
@@ -41,14 +137,17 @@ void page_fault_handler(struct page_table *pt, int page ) {
     if(frame == -1){
         // Pick a random page that owns a frame.
         int curr_page;
+
         do {
-            curr_page = rand() % pt->npages;
+            curr_page = (int)vector_get(&pagesStack, vector_count(&pagesStack) - 1);
+            vector_delete(&pagesStack, vector_count(&pagesStack) - 1);
         } while(pt->page_bits[curr_page] == 0);
 
         frame = pt->page_mapping[curr_page];
         evictPage(pt, curr_page);
     }
 
+    vector_add(&pagesStack, (void*)page);
     loadFrameIntoPage(pt, page, frame);
 }
 
