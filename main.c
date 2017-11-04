@@ -14,15 +14,55 @@ how to use the page table and disk interfaces.
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <stdbool.h>
 
+struct disk* disk;
 
-// My understanding is that, when a page fault occurs, we need to evict data from a page.
-// To do that, we must preserve memory writes by writing the frame where the fault occurs
-// to the disk. Then, the next time the frame is loaded, the data will be preserved.
-void page_fault_handler( struct page_table *pageTable, int page ) {
-	int frame = rand() % pageTable->nframes;
-	printf("page fault: setting page %d to frame %d\n", page, frame);
-	page_table_set_entry(pageTable, page, frame, PROT_READ|PROT_WRITE);
+void evictPage(struct page_table *pt, int page);
+
+void loadFrameIntoPage(struct page_table *pt, int page, int frame);
+
+void page_fault_handler(struct page_table *pt, int page ) {
+	int frame = -1;
+	for(int f=0;f<pt->nframes;f++){
+
+		// Find a frame that is not already allocated to a page.
+		bool success = true;
+		for (int curr_page=0; curr_page < pt->npages; curr_page++){
+			if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){
+                success = false;
+				break;
+			}
+		} if(success){
+			frame = f;
+			break;
+		}
+	}
+    if(frame == -1){
+        // Pick a random page that owns a frame.
+        int curr_page;
+        do {
+            curr_page = rand() % pt->npages;
+        } while(pt->page_bits[curr_page] == 0);
+
+        frame = pt->page_mapping[curr_page];
+        evictPage(pt, curr_page);
+    }
+
+    loadFrameIntoPage(pt, page, frame);
+}
+
+void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
+    printf("page fault: setting page %d to frame %d\n", page, frame);
+    disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
+}
+
+void evictPage(struct page_table *pt, int page) {
+    printf("eviction!\n");
+    int frame = pt->page_mapping[page];
+    disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    page_table_set_entry(pt, page, 0, 0);
 }
 
 int main( int argc, char *argv[] ) {
@@ -35,7 +75,7 @@ int main( int argc, char *argv[] ) {
 	int nframes = atoi(argv[2]);
 	const char *program = argv[4];
 
-	struct disk *disk = disk_open("myvirtualdisk",npages);
+	disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
 		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
 		return 1;
