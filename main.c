@@ -93,7 +93,7 @@ int main( int argc, char *argv[] ) {
 	char *physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"sort")) {
-		sort_program(virtmem, npages * 5);
+		sort_program(virtmem, npages * PAGE_SIZE);
 
 	} else if(!strcmp(program,"scan")) {
 		scan_program(virtmem,npages*PAGE_SIZE);
