@@ -22,6 +22,35 @@ void evictPage(struct page_table *pt, int page);
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame);
 
+void fifo_handler(struct page_table *pt, int page ) {
+    static int curr_frame = 0;
+
+    int page_out;
+    int frame;
+    bool evict = true;
+
+    if(curr_frame < 10) {
+        frame = curr_frame;
+        evict = false;
+    }
+    else {
+        // If we evict a page from a frame, this is the frame
+        frame = curr_frame % pt->nframes;
+        for (int curr_page=0; curr_page < pt->npages; curr_page++){
+            if(pt->page_mapping[curr_page] == frame && pt->page_bits[curr_page] != 0)
+                // the page that maps to the frame is the one we want to evict
+                page_out = curr_page;
+        }
+    }
+
+    if(evict){
+        evictPage(pt, page_out);
+    }
+
+    loadFrameIntoPage(pt, page, frame);
+    curr_frame++;
+}
+
 void random_handler(struct page_table *pt, int page ) {
 	int frame = -1;
 	for(int f=0;f<pt->nframes;f++){
@@ -86,7 +115,9 @@ int main( int argc, char *argv[] ) {
         page_fault_handler_t handler;
         if(!strcmp(algorithm, "rand")){
             handler = random_handler;
-        } else {
+        } else if(!strcmp(algorithm, "fifo")){
+            handler = fifo_handler;
+        }else {
             printf("Unknown paging algorithm!\n");
             exit(1);
         }
