@@ -14,6 +14,10 @@ disk.o: disk.c
 program.o: program.c
 	gcc -Wall -g -c program.c -o program.o
 
+experiment: virtmem
+	for frame_count in 10 20 40 80 100 ; do \
+	    ./virtmem 100 $$frame_count rand sort ; \
+	done
 
 clean:
 	rm -f *.o virtmem
