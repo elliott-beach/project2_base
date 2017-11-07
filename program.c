@@ -51,7 +51,8 @@ void focus_program( char *data, int length )
 
 void sort_program( char *data, int length )
 {
-	int total = 0;
+	int total1 = 0;
+	int total2 = 0;
 	int i;
 
 	srand(4856);
@@ -60,18 +61,31 @@ void sort_program( char *data, int length )
 		data[i] = rand();
 	}
 
+	printf("before sorting:\n\n");
+	for(i=0;i<length;i++) {
+	    //printf("%d ", data[i]);
+		total1 += data[i];
+	}
+	printf("\n\n");
+
+	printf("sum is %d\n",total1);
+
 	qsort(data,length,1,compare_bytes);
 
+	printf("after sorting:\n\n");
 	for(i=0;i<length;i++) {
-		total += data[i];
+	    //printf("%d ", data[i]);
+		total2 += data[i];
 	}
+	printf("\n\n");
 
-	printf("sort result is %d\n",total);
-
+	printf("sum before is %d\n",total1);
+	printf("sum after is %d\n",total2);
 }
 
 void scan_program( char *cdata, int length )
 {
+	printf("length: %d\n", length);
 	unsigned i, j;
 	unsigned char *data = (unsigned char*) cdata;
 	unsigned total = 0;

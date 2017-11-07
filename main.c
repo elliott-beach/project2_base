@@ -24,29 +24,27 @@ void loadFrameIntoPage(struct page_table *pt, int page, int frame);
 
 void page_fault_handler(struct page_table *pt, int page ) {
     static int curr_frame = 0;
-    int frame = -1;
-    for(int f=0;f<pt->nframes;f++){
 
-	// Find a frame that is not already allocated to a page.
-	bool success = true;
-	for (int curr_page=0; curr_page < pt->npages; curr_page++){
-	    if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){
-		success = false;
-		break;
-	    }
-	} if(success){
-	    frame = f;
-	    break;
-	}
+    int page_out;
+    int frame;
+    bool evict = true;
+
+    if(curr_frame < 10) {
+	frame = curr_frame;
+	evict = false;
     }
-    if(frame == -1){
-        // Pick a random page that owns a frame.
-        int curr_page;
-       
-	curr_page = curr_frame % pt->npages;
-
-        frame = pt->page_mapping[curr_page];
-        evictPage(pt, curr_page);
+    else {
+	// If we evict a page from a frame, this is the frame 
+	frame = curr_frame % pt->nframes;
+	for (int curr_page=0; curr_page < pt->npages; curr_page++){
+	    if(pt->page_mapping[curr_page] == frame && pt->page_bits[curr_page] != 0)
+		// the page that maps to the frame is the one we want to evict
+		page_out = curr_page;
+	} 
+    }
+    
+    if(evict){
+        evictPage(pt, page_out);	
     }
 
     loadFrameIntoPage(pt, page, frame);
@@ -56,6 +54,7 @@ void page_fault_handler(struct page_table *pt, int page ) {
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
     printf("page fault: setting page %d to frame %d\n", page, frame);
     disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    printf("disk: reading from block %d\n", page);
     page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
 }
 
@@ -63,6 +62,7 @@ void evictPage(struct page_table *pt, int page) {
     printf("eviction!\n");
     int frame = pt->page_mapping[page];
     disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    printf("disk: writing to block %d\n", page);
     page_table_set_entry(pt, page, 0, 0);
 }
 
@@ -94,7 +94,7 @@ int main( int argc, char *argv[] ) {
 	char *physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"sort")) {
-		sort_program(virtmem, npages * 5);
+	    sort_program(virtmem, npages * PAGE_SIZE);
 
 	} else if(!strcmp(program,"scan")) {
 		scan_program(virtmem,npages*PAGE_SIZE);
