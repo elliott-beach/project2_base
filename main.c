@@ -22,7 +22,7 @@ void evictPage(struct page_table *pt, int page);
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame);
 
-void page_fault_handler(struct page_table *pt, int page ) {
+void random_handler(struct page_table *pt, int page ) {
 	int frame = -1;
 	for(int f=0;f<pt->nframes;f++){
 
@@ -73,6 +73,7 @@ int main( int argc, char *argv[] ) {
 
 	int npages = atoi(argv[1]);
 	int nframes = atoi(argv[2]);
+        const char* algorithm = argv[3];
 	const char *program = argv[4];
 
 	disk = disk_open("myvirtualdisk",npages);
@@ -82,7 +83,15 @@ int main( int argc, char *argv[] ) {
 	}
 
 
-	struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
+        page_fault_handler_t handler;
+        if(!strcmp(algorithm, "rand")){
+            handler = random_handler;
+        } else {
+            printf("Unknown paging algorithm!\n");
+            exit(1);
+        }
+
+	struct page_table *pt = page_table_create( npages, nframes, handler );
 	if(!pt) {
 		fprintf(stderr,"couldn't create page table: %s\n",strerror(errno));
 		return 1;
