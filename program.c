@@ -60,24 +60,24 @@ void sort_program( char *data, int length )
 		data[i] = rand();
 	}
 
-	printf("before sorting:\n\n");
-	for(i=0;i<length;i++) {
-		printf("%d ", data[i]);
-		total += data[i];
-	}
-	printf("\n\n");
+	// printf("before sorting:\n\n");
+	// for(i=0;i<length;i++) {
+	// 	// printf("%d ", data[i]);
+	// 	total += data[i];
+	// }
+	// printf("\n\n");
 
-	printf("sum is %d\n",total);
-	total = 0;
+	// printf("sum is %d\n",total);
+	// total = 0;
 
 	qsort(data,length,1,compare_bytes);
 
-	printf("after sorting:\n\n");
+	//printf("after sorting:\n\n");
 	for(i=0;i<length;i++) {
-		printf("%d ", data[i]);
+	//	printf("%d ", data[i]);
 		total += data[i];
 	}
-	printf("\n\n");
+	//printf("\n\n");
 
 	printf("sum is %d\n",total);
 }

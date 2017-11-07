@@ -85,14 +85,14 @@ void random_handler(struct page_table *pt, int page ) {
 }
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
-    printf("page fault: setting page %d to frame %d\n", page, frame);
+    // printf("page fault: setting page %d to frame %d\n", page, frame);
     num_reads++;
     disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
     page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
 }
 
 void evictPage(struct page_table *pt, int page) {
-    printf("eviction!\n");
+    //printf("eviction!\n");
     int frame = pt->page_mapping[page];
     num_writes++;
     disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
