@@ -53,6 +53,7 @@ void fifo_handler(struct page_table *pt, int page ) {
 
     loadFrameIntoPage(pt, page, frame);
     curr_frame++;
+    num_faults++;
 }
 
 void random_handler(struct page_table *pt, int page ) {
@@ -137,8 +138,6 @@ int main( int argc, char *argv[] ) {
 
 	char *virtmem = page_table_get_virtmem(pt);
 
-	char *physmem = page_table_get_physmem(pt);
-
 	if(!strcmp(program,"sort")) {
 		sort_program(virtmem, npages * PAGE_SIZE);
 
@@ -152,7 +151,7 @@ int main( int argc, char *argv[] ) {
 		fprintf(stderr,"unknown program: %s\n",argv[3]);
 	}
 
-        printf("reads: %d, writes:%d, faults:%d\n", num_reads, num_writes, num_faults);
+        printf("%-5d%-5d%-5d\n", num_reads, num_writes, num_faults);
 	page_table_delete(pt);
 	disk_close(disk);
 
