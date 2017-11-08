@@ -110,10 +110,12 @@ void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
 }
 
 void evictPage(struct page_table *pt, int page) {
-    //printf("eviction!\n");
-    int frame = pt->page_mapping[page];
-    num_writes++;
-    disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    // Only write to disk if the page has been modified
+    if(pt->page_bits[page] == (PROT_READ|PROT_WRITE)) {
+	int frame = pt->page_mapping[page];
+	num_writes++;
+	disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    }
     page_table_set_entry(pt, page, 0, 0);
 }
 
