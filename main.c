@@ -16,8 +16,9 @@ how to use the page table and disk interfaces.
 #include <errno.h>
 #include <stdbool.h>
 
-int num_reads;
-int num_writes;
+int num_faults = 0;
+int num_reads = 0;
+int num_writes = 0;
 
 struct disk* disk;
 int nframes;
@@ -83,6 +84,7 @@ void random_handler(struct page_table *pt, int page ) {
     }
 
     loadFrameIntoPage(pt, page, frame);
+    num_faults++;
 }
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
@@ -151,7 +153,7 @@ int main( int argc, char *argv[] ) {
 		fprintf(stderr,"unknown program: %s\n",argv[3]);
 	}
 
-        printf("reads: %d, writes:%d\n", num_reads, num_writes);
+        printf("reads: %d, writes:%d, faults:%d\n", num_reads, num_writes, num_faults);
 	page_table_delete(pt);
 	disk_close(disk);
 
