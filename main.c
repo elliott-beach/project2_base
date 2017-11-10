@@ -21,6 +21,7 @@ int num_reads = 0;
 int num_writes = 0;
 
 struct disk* disk;
+int nframes;
 
 void evictPage(struct page_table *pt, int page);
 
@@ -35,12 +36,12 @@ void fifo_handler(struct page_table *pt, int page ) {
 
     // Case: page does not have write permissions
     if(pt->page_bits[page] == PROT_READ) {
-	page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
-	num_faults++;
-	return;
+      page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
+      num_faults++;
+      return;
     }
-    
-    if(curr_frame < 10) {
+
+    if(curr_frame < nframes) {
         frame = curr_frame;
         evict = false;
     }
@@ -112,9 +113,9 @@ void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
 void evictPage(struct page_table *pt, int page) {
     // Only write to disk if the page has been modified
     if(pt->page_bits[page] == (PROT_READ|PROT_WRITE)) {
-	int frame = pt->page_mapping[page];
-	num_writes++;
-	disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+      int frame = pt->page_mapping[page];
+      num_writes++;
+      disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
     }
     page_table_set_entry(pt, page, 0, 0);
 }
@@ -126,7 +127,7 @@ int main( int argc, char *argv[] ) {
 	}
 
 	int npages = atoi(argv[1]);
-	int nframes = atoi(argv[2]);
+	nframes = atoi(argv[2]);
         const char* algorithm = argv[3];
 	const char *program = argv[4];
 
