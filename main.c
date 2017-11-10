@@ -34,6 +34,13 @@ void fifo_handler(struct page_table *pt, int page ) {
     int frame;
     bool evict = true;
 
+    // Case: page does not have write permissions
+    if(pt->page_bits[page] == PROT_READ) {
+      page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
+      num_faults++;
+      return;
+    }
+
     if(curr_frame < nframes) {
         frame = curr_frame;
         evict = false;
@@ -59,6 +66,14 @@ void fifo_handler(struct page_table *pt, int page ) {
 
 void random_handler(struct page_table *pt, int page ) {
 	int frame = -1;
+
+	// Case: page does not have write permissions
+	if(pt->page_bits[page] == PROT_READ) {
+	    page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
+	    num_faults++;
+	    return;
+	}
+	
 	for(int f=0;f<pt->nframes;f++){
 
 		// Find a frame that is not already allocated to a page.
@@ -92,14 +107,16 @@ void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
     // printf("page fault: setting page %d to frame %d\n", page, frame);
     num_reads++;
     disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
-    page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
+    page_table_set_entry(pt, page, frame, PROT_READ);
 }
 
 void evictPage(struct page_table *pt, int page) {
-    //printf("eviction!\n");
-    int frame = pt->page_mapping[page];
-    num_writes++;
-    disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    // Only write to disk if the page has been modified
+    if(pt->page_bits[page] == (PROT_READ|PROT_WRITE)) {
+      int frame = pt->page_mapping[page];
+      num_writes++;
+      disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    }
     page_table_set_entry(pt, page, 0, 0);
 }
 
