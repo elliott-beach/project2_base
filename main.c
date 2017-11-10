@@ -17,6 +17,7 @@ how to use the page table and disk interfaces.
 #include <stdbool.h>
 
 struct disk* disk;
+int nframes;
 
 void evictPage(struct page_table *pt, int page);
 
@@ -29,7 +30,7 @@ void fifo_handler(struct page_table *pt, int page ) {
     int frame;
     bool evict = true;
 
-    if(curr_frame < 10) {
+    if(curr_frame < nframes) {
         frame = curr_frame;
         evict = false;
     }
@@ -101,7 +102,7 @@ int main( int argc, char *argv[] ) {
 	}
 
 	int npages = atoi(argv[1]);
-	int nframes = atoi(argv[2]);
+	nframes = atoi(argv[2]);
         const char* algorithm = argv[3];
 	const char *program = argv[4];
 
