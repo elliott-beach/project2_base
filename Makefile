@@ -18,7 +18,7 @@ experiment: virtmem
 	@echo "reads writes faults"
 	@for program in sort scan focus ; do \
 	    echo program: $$program ; \
-	    for algorithm in rand fifo custom ; do \
+	    for algorithm in rand fifo custom; do \
 		echo $$algorithm ; \
 	        for frame_count in 10 15 20 40 80 ; do \
 	            ./virtmem 100 $$frame_count $$algorithm $$program | grep -v 'result\|length\|sum'; \
