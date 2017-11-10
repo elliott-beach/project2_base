@@ -46,6 +46,41 @@ bool handleWriteFault(struct page_table *pt, int page) {
     return readOnly;
 }
 
+void filo_handler(struct page_table *pt, int page ) {
+    int frame = -1;
+    num_faults++;
+
+    if(handleWriteFault(pt, page)) return;
+
+    for(int f=0;f<pt->nframes;f++){
+
+        // Find a frame that is not already allocated to a page.
+        bool success = true;
+        for (int curr_page=0; curr_page < pt->npages; curr_page++){
+            if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){
+                success = false;
+                break;
+            }
+        } if(success){
+            frame = f;
+            break;
+        }
+    }
+    if(frame == -1){
+        // Pick the next page that owns a frame.
+        int jump = 41;
+        int curr_page = (jump + page) % pt->npages;
+        while(pt->page_bits[curr_page] == 0){
+            curr_page = (curr_page + jump) % pt->npages;
+        }
+        frame = pt->page_mapping[curr_page];
+        evictPage(pt, curr_page);
+    }
+
+    loadFrameIntoPage(pt, page, frame);
+}
+
+
 void fifo_handler(struct page_table *pt, int page ) {
     num_faults++;
     static int curr_frame = 0;
@@ -109,7 +144,6 @@ void random_handler(struct page_table *pt, int page ) {
     }
 
     loadFrameIntoPage(pt, page, frame);
-
 }
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
@@ -152,6 +186,8 @@ int main( int argc, char *argv[] ) {
         handler = random_handler;
     } else if(!strcmp(algorithm, "fifo")){
         handler = fifo_handler;
+    }else if(!strcmp(algorithm, "custom")){
+        handler = filo_handler;
     }else {
         printf("Unknown paging algorithm!\n");
         exit(1);
