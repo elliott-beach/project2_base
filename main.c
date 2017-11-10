@@ -16,6 +16,10 @@ how to use the page table and disk interfaces.
 #include <errno.h>
 #include <stdbool.h>
 
+int num_faults = 0;
+int num_reads = 0;
+int num_writes = 0;
+
 struct disk* disk;
 int nframes;
 
@@ -29,6 +33,13 @@ void fifo_handler(struct page_table *pt, int page ) {
     int page_out;
     int frame;
     bool evict = true;
+
+    // Case: page does not have write permissions
+    if(pt->page_bits[page] == PROT_READ) {
+      page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
+      num_faults++;
+      return;
+    }
 
     if(curr_frame < nframes) {
         frame = curr_frame;
@@ -50,10 +61,19 @@ void fifo_handler(struct page_table *pt, int page ) {
 
     loadFrameIntoPage(pt, page, frame);
     curr_frame++;
+    num_faults++;
 }
 
 void random_handler(struct page_table *pt, int page ) {
 	int frame = -1;
+
+	// Case: page does not have write permissions
+	if(pt->page_bits[page] == PROT_READ) {
+	    page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
+	    num_faults++;
+	    return;
+	}
+	
 	for(int f=0;f<pt->nframes;f++){
 
 		// Find a frame that is not already allocated to a page.
@@ -80,18 +100,23 @@ void random_handler(struct page_table *pt, int page ) {
     }
 
     loadFrameIntoPage(pt, page, frame);
+    num_faults++;
 }
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
-    printf("page fault: setting page %d to frame %d\n", page, frame);
+    // printf("page fault: setting page %d to frame %d\n", page, frame);
+    num_reads++;
     disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
-    page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
+    page_table_set_entry(pt, page, frame, PROT_READ);
 }
 
 void evictPage(struct page_table *pt, int page) {
-    printf("eviction!\n");
-    int frame = pt->page_mapping[page];
-    disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    // Only write to disk if the page has been modified
+    if(pt->page_bits[page] == (PROT_READ|PROT_WRITE)) {
+      int frame = pt->page_mapping[page];
+      num_writes++;
+      disk_write(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
+    }
     page_table_set_entry(pt, page, 0, 0);
 }
 
@@ -131,8 +156,6 @@ int main( int argc, char *argv[] ) {
 
 	char *virtmem = page_table_get_virtmem(pt);
 
-	char *physmem = page_table_get_physmem(pt);
-
 	if(!strcmp(program,"sort")) {
 		sort_program(virtmem, npages * PAGE_SIZE);
 
@@ -146,6 +169,7 @@ int main( int argc, char *argv[] ) {
 		fprintf(stderr,"unknown program: %s\n",argv[3]);
 	}
 
+        printf("%-5d%-5d%-5d\n", num_reads, num_writes, num_faults);
 	page_table_delete(pt);
 	disk_close(disk);
 
