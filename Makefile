@@ -30,8 +30,8 @@ experiment: virtmem
 experiment_data: virtmem
 	make experiment > experiment_data
 
-figures: plotit.py experiment_data
-	python3 plotit.py
+figures: graphs.py experiment_data
+	python3 graphs.py
 
 clean:
 	rm -f *.o virtmem
