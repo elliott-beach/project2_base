@@ -1,4 +1,3 @@
-
 virtmem: main.o page_table.o disk.o program.o
 	gcc main.o page_table.o disk.o program.o -o virtmem
 
@@ -28,10 +27,11 @@ experiment: virtmem
 	done
 
 experiment_data: virtmem
-	make experiment > experiment_data
+	make experiment --no-print-directory > experiment_data
 
-figures: graphs.py experiment_data
+figures: experiment_data graphs.py
+	mkdir -p figures
 	python3 graphs.py
 
 clean:
-	rm -f *.o virtmem
+	rm -f *.o virtmem experiment_data figures/*
