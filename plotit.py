@@ -45,7 +45,7 @@ for program in ['sort', 'scan', 'focus']:
         legends.append(alg + ' page faults')
     plot.ylabel('reads, writes, faults')
     plot.xlabel('frames')
-    plot.title('Reads, Writes, and Faults for {} program'.format(program))
+    plot.title('Reads, Writes, and Faults for {}'.format(program))
     plot.legend(legends)
     plot.xticks(frame_counts)
     plot.show()
