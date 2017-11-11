@@ -48,4 +48,4 @@ for program in ['sort', 'scan', 'focus']:
     plot.title('Reads, Writes, and Faults for {}'.format(program))
     plot.legend(legends)
     plot.xticks(frame_counts)
-    plot.show()
+    plot.savefig('figures/{}.png'.format(program))

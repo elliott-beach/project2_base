@@ -27,5 +27,11 @@ experiment: virtmem
 	    done \
 	done
 
+experiment_data: virtmem
+	make experiment > experiment_data
+
+figures: plotit.py experiment_data
+	python3 plotit.py
+
 clean:
 	rm -f *.o virtmem
