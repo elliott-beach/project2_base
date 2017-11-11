@@ -1,54 +1,51 @@
 from pprint import pprint
+from itertools import cycle
 import matplotlib.pyplot as plot
 import numpy
 
-ALGORITHMS = ['rand', 'fifo', 'custom']
+algorithms = ['rand', 'fifo', 'custom']
+program_str = 'program: '
 
-mapp = {}
-data = open("experiment_data").read().split('\n')
-frame_counts = list(map(int, data[1].split()))
+raw_data = open("experiment_data").read().split('\n')
 
-i = 0
-current = None
-algorithm = None
-for line in data[2:]:
+frame_counts = list(map(int, raw_data[1].split()))
+frames = cycle(frame_counts)
+
+results = {}
+
+for line in raw_data[2:]:
     line = line.strip()
     if not line:
         continue
-    program_str = 'program: '
     if program_str in line:
         program = line[len(program_str):]
-        mapp[program] = {}
-        current = mapp[program]
-    elif line in ALGORITHMS:
+        results[program] = {}
+    elif line in algorithms:
         algorithm = line
-        current[algorithm] = [[], []]
+        results[program][algorithm] = [[], []]
     else:
-        f = frame_counts[i % len(frame_counts)]
-        i += 1
-        reads, writes, faults = list(map(int, line.split()))
-        current[algorithm][0].append(f)
-        current[algorithm][1].append((reads,writes, faults))
+        results[program][algorithm][0].append(next(frames))
+        results[program][algorithm][1].append(list(map(int, line.split())))
 
-colors = ['b', 'g', 'r']
 for program in ['sort', 'scan', 'focus']:
-    current = mapp[program]
-    for i, key in enumerate(ALGORITHMS):
-        xs, ys = current[key]
+    current = results[program]
+    legends = []
+    colors = cycle(['b', 'g', 'r'])
+    for alg in algorithms:
+        xs, ys = current[alg]
         reads = [y[0] for y in ys]
         writes = [y[1] for y in ys]
         faults = [y[2] for y in ys]
-        plot.plot(xs, reads, '-.',c=colors[i])
-        plot.plot(xs, writes, '--', c=colors[i])
-        plot.plot(xs, faults, c=colors[i])
-    plot.ylabel('disk reads')
+        color = next(colors)
+        plot.plot(xs, reads, '-.',c=color)
+        plot.plot(xs, writes, '--', c=color)
+        plot.plot(xs, faults, c=color)
+        legends.append(alg + ' disk reads')
+        legends.append(alg + ' disk writes')
+        legends.append(alg + ' page faults')
+    plot.ylabel('reads, writes, faults')
     plot.xlabel('frames')
     plot.title('Reads, Writes, and Faults for {} program'.format(program))
-    legends = []
-    for a in ALGORITHMS:
-        legends.append(a + ' read')
-        legends.append(a + ' write')
-        legends.append(a + ' faults')
     plot.legend(legends)
     plot.xticks(frame_counts)
     plot.show()
