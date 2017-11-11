@@ -46,6 +46,48 @@ bool handleWriteFault(struct page_table *pt, int page) {
     return readOnly;
 }
 
+void custom_handler(struct page_table *pt, int page ) {
+    int frame = -1;
+    num_faults++;
+
+    if(handleWriteFault(pt, page)) return;
+
+    for(int f=0;f<pt->nframes;f++){
+
+        // Find a frame that is not already allocated to a page.
+        bool success = true;
+        for (int curr_page=0; curr_page < pt->npages; curr_page++){
+            if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){
+                success = false;
+                break;
+            }
+        } if(success){
+            frame = f;
+            break;
+        }
+    }
+
+    // Find the page that is the greatest distance mod npages from the new page
+    if(frame == -1){
+	int page_out = 0;
+	int dist;
+	int max_dist = 0;
+	for (int curr_page=0; curr_page < pt->npages; curr_page++){
+	    if(pt->page_bits[curr_page] != 0) {
+		dist = (page - curr_page) % pt->npages;
+		if(dist > max_dist) {
+		    max_dist = dist;
+		    page_out = curr_page;
+		}
+	    }
+	}
+        frame = pt->page_mapping[page_out];
+        evictPage(pt, page_out);
+    }
+
+    loadFrameIntoPage(pt, page, frame);
+}
+
 void fifo_handler(struct page_table *pt, int page ) {
     num_faults++;
     static int curr_frame = 0;
@@ -152,6 +194,8 @@ int main( int argc, char *argv[] ) {
         handler = random_handler;
     } else if(!strcmp(algorithm, "fifo")){
         handler = fifo_handler;
+    }else if(!strcmp(algorithm, "custom")){
+        handler = custom_handler;
     }else {
         printf("Unknown paging algorithm!\n");
         exit(1);
