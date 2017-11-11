@@ -51,3 +51,4 @@ for program in ['sort', 'scan', 'focus']:
     plot.legend(legends)
     plot.xticks(frame_counts)
     plot.savefig('figures/{}.png'.format(program))
+    plot.close()
