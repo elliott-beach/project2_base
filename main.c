@@ -27,19 +27,34 @@ void evictPage(struct page_table *pt, int page);
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame);
 
+bool handleWriteFault(struct page_table *pt, int page);
+
+/*
+ * Handles a fault if it occured because the page needs write permissions.
+ *
+ * A page fault will occur when a page needs write permissions but does
+ * not have them. In this case, we give the page write permissions but do not need to allocate
+ * a page as we do for normal page faults.
+ *
+ * @return True if write fault was handled, else false.
+ */
+bool handleWriteFault(struct page_table *pt, int page) {
+    bool readOnly = pt->page_bits[page] == PROT_READ;
+    if(readOnly) {
+        page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
+    }
+    return readOnly;
+}
+
 void fifo_handler(struct page_table *pt, int page ) {
+    num_faults++;
     static int curr_frame = 0;
 
     int page_out;
     int frame;
     bool evict = true;
 
-    // Case: page does not have write permissions
-    if(pt->page_bits[page] == PROT_READ) {
-        page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
-        num_faults++;
-        return;
-    }
+    if(handleWriteFault(pt, page)) return;
 
     if(curr_frame < nframes) {
         frame = curr_frame;
@@ -60,18 +75,13 @@ void fifo_handler(struct page_table *pt, int page ) {
 
     loadFrameIntoPage(pt, page, frame);
     curr_frame++;
-    num_faults++;
 }
 
 void random_handler(struct page_table *pt, int page ) {
     int frame = -1;
+    num_faults++;
 
-    // Case: page does not have write permissions
-    if(pt->page_bits[page] == PROT_READ) {
-        page_table_set_entry(pt, page, pt->page_mapping[page], PROT_READ|PROT_WRITE);
-        num_faults++;
-        return;
-    }
+    if(handleWriteFault(pt, page)) return;
 
     for(int f=0;f<pt->nframes;f++){
 
@@ -99,7 +109,7 @@ void random_handler(struct page_table *pt, int page ) {
     }
 
     loadFrameIntoPage(pt, page, frame);
-    num_faults++;
+
 }
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
