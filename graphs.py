@@ -1,5 +1,7 @@
 from pprint import pprint
 from itertools import cycle
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plot
 import numpy
 
