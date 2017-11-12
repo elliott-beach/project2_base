@@ -29,6 +29,9 @@ void loadFrameIntoPage(struct page_table *pt, int page, int frame);
 
 bool handleWriteFault(struct page_table *pt, int page);
 
+
+int findFreeFrame(const struct page_table *pt);
+
 /*
  * Handles a fault if it occured because the page needs write permissions.
  *
@@ -46,26 +49,29 @@ bool handleWriteFault(struct page_table *pt, int page) {
     return readOnly;
 }
 
-void custom_handler(struct page_table *pt, int page ) {
-    int frame = -1;
-    num_faults++;
-
-    if(handleWriteFault(pt, page)) return;
-
-    for(int f=0;f<pt->nframes;f++){
-
-        // Find a frame that is not already allocated to a page.
+/**
+ * Find a frame that is not yet allocated in the page table.
+ * @param pt The page table.
+ * @return The frame number, or -1 if no free frame exists.
+ */
+int findFreeFrame(const struct page_table *pt) {
+    for(int frame=0;frame<pt->nframes;frame++){
         bool success = true;
         for (int curr_page=0; curr_page < pt->npages; curr_page++){
-            if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){
+            if(pt->page_mapping[curr_page] == frame && pt->page_bits[curr_page] != 0){
                 success = false;
                 break;
             }
-        } if(success){
-            frame = f;
-            break;
         }
+        if(success) return frame;
     }
+    return -1;
+}
+
+void custom_handler(struct page_table *pt, int page ) {
+    num_faults++;
+    if(handleWriteFault(pt, page)) return;
+    int frame = findFreeFrame(pt);
 
     // Find the page that is the greatest distance mod npages from the new page
     if(frame == -1){
@@ -82,12 +88,15 @@ void custom_handler(struct page_table *pt, int page ) {
                 }
             }
         }
+//        int page_out = pt->npages-1;
         frame = pt->page_mapping[page_out];
         evictPage(pt, page_out);
     }
 
     loadFrameIntoPage(pt, page, frame);
 }
+
+
 
 void fifo_handler(struct page_table *pt, int page ) {
     num_faults++;
@@ -121,25 +130,9 @@ void fifo_handler(struct page_table *pt, int page ) {
 }
 
 void random_handler(struct page_table *pt, int page ) {
-    int frame = -1;
     num_faults++;
-
     if(handleWriteFault(pt, page)) return;
-
-    for(int f=0;f<pt->nframes;f++){
-
-        // Find a frame that is not already allocated to a page.
-        bool success = true;
-        for (int curr_page=0; curr_page < pt->npages; curr_page++){
-            if(pt->page_mapping[curr_page] == f && pt->page_bits[curr_page] != 0){
-                success = false;
-                break;
-            }
-        } if(success){
-            frame = f;
-            break;
-        }
-    }
+    int frame = findFreeFrame(pt);
     if(frame == -1){
         // Pick a random page that owns a frame.
         int curr_page;
