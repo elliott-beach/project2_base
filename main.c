@@ -75,20 +75,19 @@ void custom_handler(struct page_table *pt, int page ) {
 
     // Find the page that is the greatest distance mod npages from the new page
     if(frame == -1){
-        int page_out = 0;
-        int dist;
-        int max_dist = 0;
-        for (int curr_page=0; curr_page < pt->npages; curr_page++){
-            if(pt->page_bits[curr_page] != 0) {
-                dist = (page - curr_page) % pt->npages;
-                // if (dist < 0) dist *= -1; // I wanted to add this but it appears to break things  -Elliott
-                if(dist > max_dist) {
-                    max_dist = dist;
-                    page_out = curr_page;
-                }
-            }
-        }
-//        int page_out = pt->npages-1;
+//        int page_out = 0;
+//        int dist;
+//        int max_dist = 0;
+//        for (int curr_page=0; curr_page < pt->npages; curr_page++){
+//            if(pt->page_bits[curr_page] != 0) {
+//                dist = (page - curr_page) % pt->npages;
+//                if(dist > max_dist) {
+//                    max_dist = dist;
+//                    page_out = curr_page;
+//                }
+//            }
+//        }
+        int page_out = pt->npages-1;
         frame = pt->page_mapping[page_out];
         evictPage(pt, page_out);
     }
