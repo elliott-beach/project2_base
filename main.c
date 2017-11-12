@@ -23,14 +23,21 @@ int num_writes = 0;
 struct disk* disk;
 int nframes;
 
+
+/////////////////////////
+// Helper Functions
+////////////////////////
+
 void evictPage(struct page_table *pt, int page);
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame);
 
 bool handleWriteFault(struct page_table *pt, int page);
 
+int randomEligiblePage(const struct page_table *pt);
+
 /*
- * Handles a fault if it occured because the page needs write permissions.
+ * Handles a fault if it occurred because the page needs write permissions.
  *
  * A page fault will occur when a page needs write permissions but does
  * not have them. In this case, we give the page write permissions but do not need to allocate
@@ -65,96 +72,38 @@ int findFreeFrame(const struct page_table *pt) {
     return -1;
 }
 
-
-void custom_handler(struct page_table *pt, int page ) {
-    num_faults++;
-    if(handleWriteFault(pt, page)) return;
-    int frame = findFreeFrame(pt);
-
-    if(frame == -1){
-        int page_out = -1;
-
-        // Find the first page before this page that owns a frame.
-        for (int curr_page=0; curr_page < page; curr_page++){
-            if(pt->page_bits[curr_page] != 0) {
-                page_out = curr_page;
-                break;
-            }
-        }
-
-        // If no such page exists, pick a random page.
-        if(page_out == -1) {
-            do {
-                page_out = rand() % pt->npages;
-            } while(pt->page_bits[page_out] == 0);
-        }
-
-        frame = pt->page_mapping[page_out];
-        evictPage(pt, page_out);
-    }
-
-    loadFrameIntoPage(pt, page, frame);
+/**
+ * Find a random page that owns a frame.
+ * @param pt The page table.
+ * @return The page number.
+ */
+int randomEligiblePage(const struct page_table *pt) {
+    int curr_page;
+    do {
+        curr_page = rand() % pt->npages;
+    } while(pt->page_bits[curr_page] == 0);
+    return curr_page;
 }
 
-void fifo_handler(struct page_table *pt, int page ) {
-    num_faults++;
-    static int curr_frame = 0;
-
-    int page_out;
-    int frame;
-    bool evict = true;
-
-    if(handleWriteFault(pt, page)) return;
-
-    if(curr_frame < nframes) {
-        frame = curr_frame;
-        evict = false;
-    } else {
-        // If we evict a page from a frame, this is the frame
-        frame = curr_frame % pt->nframes;
-        for (int curr_page=0; curr_page < pt->npages; curr_page++){
-            if(pt->page_mapping[curr_page] == frame && pt->page_bits[curr_page] != 0)
-                // the page that maps to the frame is the one we want to evict
-                page_out = curr_page;
-        }
-    }
-
-    if(evict){
-        evictPage(pt, page_out);
-    }
-
-    loadFrameIntoPage(pt, page, frame);
-    curr_frame++;
-}
-
-void random_handler(struct page_table *pt, int page ) {
-    num_faults++;
-    if(handleWriteFault(pt, page)) return;
-    int frame = findFreeFrame(pt);
-
-    if(frame == -1){
-        // Pick a random page that owns a frame.
-        int curr_page;
-        do {
-            curr_page = rand() % pt->npages;
-        } while(pt->page_bits[curr_page] == 0);
-
-        frame = pt->page_mapping[curr_page];
-        evictPage(pt, curr_page);
-    }
-
-    loadFrameIntoPage(pt, page, frame);
-}
-
+/**
+ * Load the frame from the disk into the given page.
+ * @param pt The page table.
+ * @param page The page number.
+ * @param frame The frame number.
+ */
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
-    // printf("page fault: setting page %d to frame %d\n", page, frame);
     num_reads++;
     disk_read(disk, page, page_table_get_physmem(pt) + frame * BLOCK_SIZE);
     page_table_set_entry(pt, page, frame, PROT_READ);
 }
 
+/**
+ * Evict a page from the page table, saving it to the disk if its write bit was set.
+ * @param pt The page table.
+ * @param page The page number.
+ */
 void evictPage(struct page_table *pt, int page) {
-    // Only write to disk if the page has been modified
+    // Only write to disk if the page has been modified.
     if(pt->page_bits[page] == (PROT_READ|PROT_WRITE)) {
         int frame = pt->page_mapping[page];
         num_writes++;
@@ -162,6 +111,87 @@ void evictPage(struct page_table *pt, int page) {
     }
     page_table_set_entry(pt, page, 0, 0);
 }
+
+/////////////////////////
+// Page Fault Handlers
+////////////////////////
+
+/**
+ * Evict the least page less than this page that owns a frame,
+ * or else a random page if no page before this page owns a frame.
+ */
+void custom_handler(struct page_table *pt, int page ) {
+    num_faults++;
+    if(handleWriteFault(pt, page)) return;
+    int frame = findFreeFrame(pt);
+
+    if(frame == -1){
+        int page_out = -1;
+        for (int curr_page=0; curr_page < page; curr_page++){
+            if(pt->page_bits[curr_page] != 0) {
+                page_out = curr_page;
+                break;
+            }
+        }
+        if(page_out == -1) page_out = randomEligiblePage(pt);
+        frame = pt->page_mapping[page_out];
+        evictPage(pt, page_out);
+    }
+
+    loadFrameIntoPage(pt, page, frame);
+}
+
+/**
+ * Evict pages follow a FIFO queue, if needed. The queue is implemented
+ * as simply storing the current frame number mod nframes. Pages are rotated
+ * through evenly, as they would be in a queue, even though there is no actual queue data structure.
+ */
+void fifo_handler(struct page_table *pt, int page ) {
+    num_faults++;
+    if(handleWriteFault(pt, page)) return;
+
+    static int curr_frame = 0;
+
+    int frame;
+    if(curr_frame < nframes) {
+        frame = curr_frame;
+    } else {
+
+        // curr_frame gives the frame to use for the page.
+        frame = curr_frame % pt->nframes;
+
+        // Evict the page currently holding the frame.
+        int page_out = -1;
+        for (int curr_page=0; curr_page < pt->npages; curr_page++){
+            if(pt->page_mapping[curr_page] == frame && pt->page_bits[curr_page] != 0)
+                page_out = curr_page;
+        }
+        evictPage(pt, page_out);
+
+    }
+    loadFrameIntoPage(pt, page, frame);
+
+    curr_frame++;
+}
+
+/**
+ * Evict a random page from the page table.
+ */
+void random_handler(struct page_table *pt, int page ) {
+    num_faults++;
+    if(handleWriteFault(pt, page)) return;
+    int frame = findFreeFrame(pt);
+
+    // If no free frame exists, evict a random page owning a frame.
+    if(frame == -1){
+        int evicted_page = randomEligiblePage(pt);
+        frame = pt->page_mapping[evicted_page];
+        evictPage(pt, evicted_page);
+    }
+
+    loadFrameIntoPage(pt, page, frame);
+}
+
 
 int main( int argc, char *argv[] ) {
     if(argc!=5) {
@@ -179,7 +209,6 @@ int main( int argc, char *argv[] ) {
         fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
         return 1;
     }
-
 
     page_fault_handler_t handler;
     if(!strcmp(algorithm, "rand")){
@@ -201,14 +230,14 @@ int main( int argc, char *argv[] ) {
 
     char *virtmem = page_table_get_virtmem(pt);
 
-    if(!strcmp(program,"sort")) {
-        sort_program(virtmem, npages * PAGE_SIZE);
+    if(!strcmp(program, "sort")) {
+        sort_program(virtmem, npages*PAGE_SIZE);
 
-    } else if(!strcmp(program,"scan")) {
-        scan_program(virtmem,npages*PAGE_SIZE);
+    } else if(!strcmp(program, "scan")) {
+        scan_program(virtmem, npages*PAGE_SIZE);
 
-    } else if(!strcmp(program,"focus")) {
-        focus_program(virtmem,npages*PAGE_SIZE);
+    } else if(!strcmp(program, "focus")) {
+        focus_program(virtmem, npages*PAGE_SIZE);
 
     } else {
         fprintf(stderr,"unknown program: %s\n",argv[3]);
