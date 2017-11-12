@@ -1,4 +1,3 @@
-
 virtmem: main.o page_table.o disk.o program.o
 	gcc main.o page_table.o disk.o program.o -o virtmem
 
@@ -16,15 +15,23 @@ program.o: program.c
 
 experiment: virtmem
 	@echo "reads writes faults"
+	@echo 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80
 	@for program in sort scan focus ; do \
 	    echo program: $$program ; \
-	    for algorithm in rand fifo custom ; do \
+	    for algorithm in rand fifo custom; do \
 		echo $$algorithm ; \
-	        for frame_count in 10 15 20 40 80 ; do \
+	        for frame_count in 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 ; do \
 	            ./virtmem 100 $$frame_count $$algorithm $$program | grep -v 'result\|length\|sum'; \
 	        done \
 	    done \
 	done
 
+experiment_data: virtmem
+	make experiment --no-print-directory > experiment_data
+
+figures: experiment_data graphs.py
+	mkdir -p figures
+	python3 graphs.py
+
 clean:
-	rm -f *.o virtmem
+	rm -f *.o virtmem experiment_data figures/*

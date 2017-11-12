@@ -159,7 +159,6 @@ void random_handler(struct page_table *pt, int page ) {
     }
 
     loadFrameIntoPage(pt, page, frame);
-
 }
 
 void loadFrameIntoPage(struct page_table *pt, int page, int frame) {
