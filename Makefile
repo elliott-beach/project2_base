@@ -33,5 +33,12 @@ figures: experiment_data graphs.py
 	mkdir -p figures
 	python3 graphs.py
 
+report: # requires https://github.com/prasmussen/gdrive installed
+	gdrive export -f 1gmnUy7Zuh2qBM5WYFcedKl3oWvlFLMmZOiL31bTfcMc
+	mv *Report.pdf report.pdf
+
+publish: report
+	tar -cvf project.tar report.pdf *.c *.h Makefile graphs.py
+
 clean:
 	rm -f *.o virtmem experiment_data figures/*
